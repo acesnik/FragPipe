@@ -21,6 +21,7 @@ import com.dmtavt.fragpipe.messages.NoteConfigMsfragger;
 import com.dmtavt.fragpipe.messages.NoteConfigPhilosopher;
 import com.dmtavt.fragpipe.messages.NoteConfigSpeclibgen;
 import com.dmtavt.fragpipe.params.ThisAppProps;
+import com.dmtavt.fragpipe.params.ptmprophet.PtmProphetPanel;
 import com.dmtavt.fragpipe.process.ProcessDescription;
 import com.dmtavt.fragpipe.process.ProcessDescription.Builder;
 import com.dmtavt.fragpipe.process.RunnableDescription;
@@ -778,6 +779,12 @@ public class FragpipeRun {
       return true;
     });
 
+    final PtmProphetPanel ptmProphetPanel = Fragpipe.getStickyStrict(PtmProphetPanel.class);
+    final boolean isRunPtmProphet = ptmProphetPanel.isRun();
+    final CmdPtmProphet cmdPtmProphet = new CmdPtmProphet(isRunPtmProphet, wd);
+
+
+
     // run Protein Prophet
     final boolean isProcessGroupsSeparately = Fragpipe.getStickyStrict(TabWorkflow.class)
         .isProcessEachExpSeparately();
@@ -785,6 +792,13 @@ public class FragpipeRun {
     final Map<LcmsFileGroup, Path> sharedMapGroupsToProtxml = new LinkedHashMap<>();
 
     final CmdProteinProphet cmdProteinProphet = new CmdProteinProphet(isRunProteinProphet, wd);
+    addConfig.accept(cmdProteinProphet, () -> {
+      if (!cmdPtmProphet.configure()) {
+        SwingUtils.showWarningDialog(parent, "No ptm prophet for you", "ho ho");
+        return false;
+      }
+      return true;
+    });
 
     addCheck.accept(() -> {
       if (cmdProteinProphet.isRun()) {
@@ -1106,7 +1120,8 @@ public class FragpipeRun {
 
     addToGraph(graphOrder, cmdCrystalc, DIRECTION.IN, cmdMsfragger);
     addToGraph(graphOrder, cmdPeptideProphet, DIRECTION.IN, cmdMsfragger, cmdCrystalc);
-    addToGraph(graphOrder, cmdProteinProphet, DIRECTION.IN, cmdPeptideProphet);
+    addToGraph(graphOrder, cmdPtmProphet, DIRECTION.IN, cmdPeptideProphet);
+    addToGraph(graphOrder, cmdProteinProphet, DIRECTION.IN, cmdPeptideProphet, cmdPtmProphet);
     addToGraph(graphOrder, cmdPhilosopherDbAnnotate, DIRECTION.IN, cmdProteinProphet);
     addToGraph(graphOrder, cmdPhilosopherFilter, DIRECTION.IN, cmdPhilosopherDbAnnotate, cmdProteinProphet);
     addToGraph(graphOrder, cmdFreequant, DIRECTION.IN, cmdPhilosopherFilter);

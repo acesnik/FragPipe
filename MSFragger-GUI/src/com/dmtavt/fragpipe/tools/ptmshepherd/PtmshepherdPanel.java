@@ -15,6 +15,7 @@ import com.github.chhh.utils.swing.FileChooserUtils.FcMode;
 import com.github.chhh.utils.swing.FormEntry;
 import com.github.chhh.utils.swing.GhostText;
 import com.github.chhh.utils.swing.JPanelBase;
+import com.github.chhh.utils.swing.MigUtils;
 import com.github.chhh.utils.swing.UiCheck;
 import com.github.chhh.utils.swing.UiCombo;
 import com.github.chhh.utils.swing.UiSpinnerDouble;
@@ -197,6 +198,7 @@ public class PtmshepherdPanel extends JPanelBase {
   }
 
   private JPanel createPanelTop() {
+
     JPanel p = mu.newPanel(new LC());
     mu.borderEmpty(p);
 
