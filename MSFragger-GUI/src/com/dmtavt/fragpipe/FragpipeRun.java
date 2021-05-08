@@ -7,6 +7,7 @@ import com.dmtavt.fragpipe.api.IConfig;
 import com.dmtavt.fragpipe.api.InputLcmsFile;
 import com.dmtavt.fragpipe.api.LcmsFileGroup;
 import com.dmtavt.fragpipe.cmd.CmdBase;
+import com.dmtavt.fragpipe.cmd.CmdCombinePSMValidation;
 import com.dmtavt.fragpipe.cmd.CmdCrystalc;
 import com.dmtavt.fragpipe.cmd.CmdFreequant;
 import com.dmtavt.fragpipe.cmd.CmdIonquant;
@@ -57,6 +58,7 @@ import com.dmtavt.fragpipe.tools.crystalc.CrystalcPanel;
 import com.dmtavt.fragpipe.tools.crystalc.CrystalcParams;
 import com.dmtavt.fragpipe.tools.fragger.MsfraggerParams;
 import com.dmtavt.fragpipe.tools.ionquant.QuantPanelLabelfree;
+import com.dmtavt.fragpipe.tools.iproph.CombinePSMValidationPanel;
 import com.dmtavt.fragpipe.tools.pepproph.PepProphPanel;
 import com.dmtavt.fragpipe.tools.philosopher.ReportPanel;
 import com.dmtavt.fragpipe.tools.protproph.ProtProphPanel;
@@ -816,6 +818,33 @@ public class FragpipeRun {
       return true;
     });
 
+    // run IProphet to combine PSM validation
+    final CombinePSMValidationPanel combinePSMValidationPanel = Fragpipe.getStickyStrict(CombinePSMValidationPanel.class);
+    final boolean isRunCombinePSMValidationPanel = combinePSMValidationPanel.isRun();
+//    final Map<LcmsFileGroup, Path> sharedMapGroupsToProtxml = new LinkedHashMap<>();
+
+    final CmdCombinePSMValidation cmdCombinePSMValidation = new CmdCombinePSMValidation(isRunCombinePSMValidationPanel, wd);
+
+    addCheck.accept(() -> {
+      if (cmdCombinePSMValidation.isRun()) {
+        return checkDbConfig(parent);
+      }
+      return true;
+    });
+    addConfig.accept(cmdCombinePSMValidation, () -> {
+      final boolean isMuiltiExperimentReport = sharedLcmsFileGroups.size() > 1;
+      if (cmdCombinePSMValidation.isRun()) {
+        final String protProphCmdStr = protProphPanel.getCmdOpts();
+        if (!cmdCombinePSMValidation.configure(parent, usePhi, protProphCmdStr, isMuiltiExperimentReport, sharedPepxmlFiles)) {
+          return false;
+        }
+      }
+      Map<LcmsFileGroup, Path> outputs = cmdCombinePSMValidation.outputs(sharedPepxmlFiles, isMuiltiExperimentReport);
+//      MapUtils.refill(sharedMapGroupsToProtxml, outputs);
+      return true;
+    });
+
+    // run PTM Prophet
     final PtmProphetPanel panelPtmProphet = Fragpipe.getStickyStrict(PtmProphetPanel.class);
     final CmdPtmProphet cmdPtmProphet = new CmdPtmProphet(panelPtmProphet.isRun(), wd);
     addCheck.accept(() -> {
