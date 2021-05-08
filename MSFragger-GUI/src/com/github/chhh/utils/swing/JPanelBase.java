@@ -5,8 +5,13 @@ import com.github.chhh.utils.StringUtils;
 import com.github.chhh.utils.SwingUtils;
 import java.awt.Component;
 import java.awt.ItemSelectable;
+
+import net.miginfocom.layout.LC;
+import net.miginfocom.swing.MigLayout;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.swing.*;
 
 public abstract class JPanelBase extends JPanelWithEnablement {
   private static final Logger log = LoggerFactory.getLogger(JPanelBase.class);
