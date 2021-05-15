@@ -1,8 +1,18 @@
 package com.dmtavt.fragpipe.tools.percolator;
 
+import org.w3c.dom.Document;
+import org.w3c.dom.NamedNodeMap;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+import org.xml.sax.InputSource;
+
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.StringReader;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -21,6 +31,7 @@ import java.util.regex.Pattern;
 public class PercolatorOutputToPepXML {
 
     private static final Pattern pattern = Pattern.compile("(.+spectrum=\".+\\.)([0-9]+)\\.([0-9]+)(\\.[0-9]+\".+)");
+    private static final Pattern pattern2 = Pattern.compile("(.+\\.)([0-9]+)\\.([0-9]+)(\\.[0-9]+)");
 
     public static void main(final String[] args) {
         if (args.length == 0)
@@ -58,7 +69,28 @@ public class PercolatorOutputToPepXML {
             }
         return spectrum.substring(0, spectrum.length() - 2);
     }
-
+    private static String paddingZeros2(final String spectrum_name) {
+        Matcher matcher = pattern2.matcher(spectrum_name);
+        if (matcher.matches()) {
+            if (matcher.group(2).contentEquals(matcher.group(3))) {
+                String scanNum = matcher.group(2);
+                if (scanNum.length() < 5) {
+                    StringBuilder sb = new StringBuilder(5);
+                    for (int i = 0; i < 5 - scanNum.length(); ++i) {
+                        sb.append("0");
+                    }
+                    sb.append(scanNum);
+                    return matcher.group(1) + sb + "." + sb + matcher.group(4);
+                } else {
+                    return spectrum_name;
+                }
+            } else {
+                throw new RuntimeException("Cannot parse spectrum ID from  " + spectrum_name);
+            }
+        } else {
+            throw new RuntimeException("Cannot parse line " + spectrum_name);
+        }
+    }
     private static String paddingZeros(final String line) {
         Matcher matcher = pattern.matcher(line);
         if (matcher.matches()) {
@@ -115,6 +147,103 @@ public class PercolatorOutputToPepXML {
             throw new UncheckedIOException(e);
         }
         return max_rank0;
+    }
+
+    private static String handle_sqectrum_query2(final List<String> sq,
+                                                final Map<String, Object[][]> pin_tsv_dict_r,
+                                                final int rank) {
+        final DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+        final DocumentBuilder db;
+        try {
+            db = dbf.newDocumentBuilder();
+        } catch (ParserConfigurationException e) {
+            throw new RuntimeException(e);
+        }
+        final Document doc0;
+        final String test = "<spectrum_query start_scan=\"3044\" assumed_charge=\"2\" native_id=\"controllerType=0 controllerNumber=1 originalScan=1579 demux=1 scan=3044\" spectrum=\"23aug2017_hela_serum_timecourse_4mz_narrow_1.3044.3044.0\" end_scan=\"3044\" index=\"2829\" precursor_neutral_mass=\"865.4392\" retention_time_sec=\"150.930\">\n" +
+                "<search_result>\n" +
+                "<search_hit peptide=\"KTESHHK\" massdiff=\"-0.0014\" calc_neutral_pep_mass=\"865.4406\" peptide_next_aa=\"A\" num_missed_cleavages=\"1\" num_tol_term=\"2\" num_tot_proteins=\"8\" tot_num_ions=\"12\" hit_rank=\"1\" num_matched_ions=\"7\" protein=\"sp|P04908|H2A1B_HUMAN Histone H2A type 1-B/E OS=Homo sapiens OX=9606 GN=H2AC4 PE=1 SV=2\" peptide_prev_aa=\"K\" is_rejected=\"0\">\n" +
+                "<alternative_protein protein=\"sp|P0C0S8|H2A1_HUMAN Histone H2A type 1 OS=Homo sapiens OX=9606 GN=H2AC11 PE=1 SV=2\" peptide_prev_aa=\"K\" peptide_next_aa=\"A\" num_tol_term=\"2\"/>\n" +
+                "<alternative_protein protein=\"sp|P20671|H2A1D_HUMAN Histone H2A type 1-D OS=Homo sapiens OX=9606 GN=H2AC7 PE=1 SV=2\" peptide_prev_aa=\"K\" peptide_next_aa=\"A\" num_tol_term=\"2\"/>\n" +
+                "<alternative_protein protein=\"sp|Q6FI13|H2A2A_HUMAN Histone H2A type 2-A OS=Homo sapiens OX=9606 GN=HIST2H2AA3 PE=1 SV=3\" peptide_prev_aa=\"K\" peptide_next_aa=\"A\" num_tol_term=\"2\"/>\n" +
+                "<alternative_protein protein=\"sp|Q7L7L0|H2A3_HUMAN Histone H2A type 3 OS=Homo sapiens OX=9606 GN=HIST3H2A PE=1 SV=3\" peptide_prev_aa=\"K\" peptide_next_aa=\"A\" num_tol_term=\"2\"/>\n" +
+                "<alternative_protein protein=\"sp|Q93077|H2A1C_HUMAN Histone H2A type 1-C OS=Homo sapiens OX=9606 GN=HIST1H2AC PE=1 SV=3\" peptide_prev_aa=\"K\" peptide_next_aa=\"A\" num_tol_term=\"2\"/>\n" +
+                "<alternative_protein protein=\"sp|Q96KK5|H2A1H_HUMAN Histone H2A type 1-H OS=Homo sapiens OX=9606 GN=HIST1H2AH PE=1 SV=3\" peptide_prev_aa=\"K\" peptide_next_aa=\"A\" num_tol_term=\"2\"/>\n" +
+                "<alternative_protein protein=\"sp|Q99878|H2A1J_HUMAN Histone H2A type 1-J OS=Homo sapiens OX=9606 GN=H2AC14 PE=1 SV=3\" peptide_prev_aa=\"K\" peptide_next_aa=\"A\" num_tol_term=\"2\"/>\n" +
+                "<search_score name=\"hyperscore\" value=\"11.801\"/>\n" +
+                "<search_score name=\"nextscore\" value=\"7.440\"/>\n" +
+                "<search_score name=\"expect\" value=\"1.495e-01\"/>\n" +
+                "</search_hit>\n" +
+                "<search_hit peptide=\"KTESHHK\" massdiff=\"-0.0014\" calc_neutral_pep_mass=\"865.4406\" peptide_next_aa=\"A\" num_missed_cleavages=\"1\" num_tol_term=\"2\" num_tot_proteins=\"8\" tot_num_ions=\"12\" hit_rank=\"1\" num_matched_ions=\"7\" protein=\"sp|P04908|H2A1B_HUMAN Histone H2A type 1-B/E OS=Homo sapiens OX=9606 GN=H2AC4 PE=1 SV=2\" peptide_prev_aa=\"K\" is_rejected=\"0\">\n" +
+                "<alternative_protein protein=\"sp|P0C0S8|H2A1_HUMAN Histone H2A type 1 OS=Homo sapiens OX=9606 GN=H2AC11 PE=1 SV=2\" peptide_prev_aa=\"K\" peptide_next_aa=\"A\" num_tol_term=\"2\"/>\n" +
+                "<alternative_protein protein=\"sp|P20671|H2A1D_HUMAN Histone H2A type 1-D OS=Homo sapiens OX=9606 GN=H2AC7 PE=1 SV=2\" peptide_prev_aa=\"K\" peptide_next_aa=\"A\" num_tol_term=\"2\"/>\n" +
+                "<alternative_protein protein=\"sp|Q6FI13|H2A2A_HUMAN Histone H2A type 2-A OS=Homo sapiens OX=9606 GN=HIST2H2AA3 PE=1 SV=3\" peptide_prev_aa=\"K\" peptide_next_aa=\"A\" num_tol_term=\"2\"/>\n" +
+                "<alternative_protein protein=\"sp|Q7L7L0|H2A3_HUMAN Histone H2A type 3 OS=Homo sapiens OX=9606 GN=HIST3H2A PE=1 SV=3\" peptide_prev_aa=\"K\" peptide_next_aa=\"A\" num_tol_term=\"2\"/>\n" +
+                "<alternative_protein protein=\"sp|Q93077|H2A1C_HUMAN Histone H2A type 1-C OS=Homo sapiens OX=9606 GN=HIST1H2AC PE=1 SV=3\" peptide_prev_aa=\"K\" peptide_next_aa=\"A\" num_tol_term=\"2\"/>\n" +
+                "<alternative_protein protein=\"sp|Q96KK5|H2A1H_HUMAN Histone H2A type 1-H OS=Homo sapiens OX=9606 GN=HIST1H2AH PE=1 SV=3\" peptide_prev_aa=\"K\" peptide_next_aa=\"A\" num_tol_term=\"2\"/>\n" +
+                "<alternative_protein protein=\"sp|Q99878|H2A1J_HUMAN Histone H2A type 1-J OS=Homo sapiens OX=9606 GN=H2AC14 PE=1 SV=3\" peptide_prev_aa=\"K\" peptide_next_aa=\"A\" num_tol_term=\"2\"/>\n" +
+                "<search_score name=\"hyperscore\" value=\"11.801\"/>\n" +
+                "<search_score name=\"nextscore\" value=\"7.440\"/>\n" +
+                "<search_score name=\"expect\" value=\"1.495e-01\"/>\n" +
+                "</search_hit>\n" +
+                "</search_result>\n" +
+                "</spectrum_query>";
+        try {
+//            doc0 = db.parse(new InputSource(new StringReader(String.join("\n", sq))));
+            doc0 = db.parse(new InputSource(new StringReader(test)));
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        final Node doc =  doc0.getFirstChild();
+        final NamedNodeMap sq_attr = doc.getAttributes();
+        final String spectrum0 = sq_attr.getNamedItem("spectrum").getNodeValue();
+        final String spectrum = spectrum0.substring(0, spectrum0.length() - 2);
+        sq_attr.getNamedItem("spectrum").setNodeValue(paddingZeros2(spectrum0));
+        final NodeList nl = doc.getChildNodes().item(1).getChildNodes();
+        for (int i = 0; i < nl.getLength(); i++) {
+            System.out.println("nl.item(i) = " + nl.item(i));
+            
+        }
+            
+//        printTree(doc);
+
+        final Object[][] tmp = pin_tsv_dict_r.get(spectrum);
+        final double[] pep_score = (double[]) tmp[rank - 1][1];
+        if (pep_score == null)
+            return "";
+        final double one_minus_PEP = 1 - pep_score[0];
+        final double score = pep_score[1];
+        final int[] ntt_nmc = (int[]) tmp[rank - 1][0];
+        final int ntt = ntt_nmc[0];
+        final int nmc = ntt_nmc[1];
+        int isomassd = 0;
+        System.exit(12);
+        return "";
+    }
+
+    public static void printTree(Node doc) {
+        if (doc == null) {
+            System.out.println("Nothing to print!!");
+            return;
+        }
+        try {
+            System.out.println(doc.getNodeName() + " : " + doc.getNodeValue());
+            NamedNodeMap cl = doc.getAttributes();
+            if (cl != null)
+                for (int i = 0; i < cl.getLength(); i++) {
+                    Node node = cl.item(i);
+                    System.out.println("\t" + node.getNodeName() + " -> " + node.getNodeValue());
+                    System.out.println("\t" + node.getNodeName());
+                }
+            NodeList nl = doc.getChildNodes();
+            for (int i = 0; i < nl.getLength(); i++) {
+                Node node = nl.item(i);
+                printTree(node);
+            }
+        } catch (Throwable e) {
+            System.out.println("Cannot print!! " + e.getMessage());
+            throw e;
+        }
     }
 
     private static String handle_sqectrum_query(final List<String> sq,
@@ -278,6 +407,7 @@ public class PercolatorOutputToPepXML {
                             sq.add(line);
                             if (line.trim().equals("</spectrum_query>")) {
                                 out.write(handle_sqectrum_query(sq, pin_tsv_dict_r, rank));
+                                handle_sqectrum_query2(sq, pin_tsv_dict_r, rank);
                                 break;
                             }
                         }
