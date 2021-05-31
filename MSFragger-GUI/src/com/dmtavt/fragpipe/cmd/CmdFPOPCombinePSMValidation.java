@@ -23,15 +23,15 @@ import java.util.Map.Entry;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-public class CmdCombinePSMValidation extends CmdBase {
-  private static final Logger log = LoggerFactory.getLogger(CmdCombinePSMValidation.class);
+public class CmdFPOPCombinePSMValidation extends CmdBase {
+  private static final Logger log = LoggerFactory.getLogger(CmdFPOPCombinePSMValidation.class);
 
-  public static final String NAME = "ProteinProphet";
+  public static final String NAME = "FPOP IProphet";
 
   private static final String INTERACT_FN = "combined.prot.xml";
   private static final String COMBINED_FN = "combined.prot.xml";
 
-  public CmdCombinePSMValidation(boolean isRun, Path workDir) {
+  public CmdFPOPCombinePSMValidation(boolean isRun, Path workDir) {
     super(isRun, workDir);
   }
 
@@ -45,7 +45,6 @@ public class CmdCombinePSMValidation extends CmdBase {
    * 'interact' has been renamed to 'combined'.
    */
   public Map<LcmsFileGroup, Path> outputs(Map<InputLcmsFile, List<Path>> pepxmlFiles, boolean isMultiExperimentReport) {
-
     Map<String, List<InputLcmsFile>> lcmsByExp = pepxmlFiles.keySet().stream()
         .collect(Collectors.groupingBy(f -> f.getGroup()));
 
@@ -140,7 +139,8 @@ public class CmdCombinePSMValidation extends CmdBase {
   }
 
   public boolean configure(Component comp, UsageTrigger usePhilosopher,
-      String txtProteinProphetCmdLineOpts, boolean isMultiExperiment, Map<InputLcmsFile, List<Path>> pepxmlFiles) {
+      String txtProteinProphetCmdLineOpts, boolean isMultiExperiment, Map<InputLcmsFile, List<Path>> pepxmlFiles,
+                           Path pepXmlFolder, List<Path> interactPepXMLFiles, int nThreads) {
 
     initPreConfig();
 
@@ -151,8 +151,8 @@ public class CmdCombinePSMValidation extends CmdBase {
       return false;
     }
 
-    ProteinProphetParams proteinProphetParams = new ProteinProphetParams();
-    proteinProphetParams.setCmdLineParams(txtProteinProphetCmdLineOpts);
+//    ProteinProphetParams proteinProphetParams = new ProteinProphetParams();
+//    proteinProphetParams.setCmdLineParams(txtProteinProphetCmdLineOpts);
 
     Map<LcmsFileGroup, Path> groupToProtxml = outputs(pepxmlFiles, isMultiExperiment);
 
@@ -172,8 +172,15 @@ public class CmdCombinePSMValidation extends CmdBase {
           .flatMap(pepxml -> pepxml.getValue().stream()).map(Path::toString)
           .distinct()
           .collect(Collectors.toList());
-      List<String> cmd = createCmdStub(usePhilosopher, protxml.getParent(), proteinProphetParams);
-      cmd.addAll(pepxmlsPaths);
+//      List<String> cmd = createCmdStub(usePhilosopher, protxml.getParent(), proteinProphetParams);
+      final List<String> cmd = new ArrayList<>();
+      cmd.add(usePhilosopher.useBin(pepXmlFolder));
+      cmd.add(PhilosopherProps.CMD_IPROPHET);
+      cmd.add("--nonsp");
+      cmd.add("--threads");
+      cmd.add(String.valueOf(nThreads));
+      cmd.addAll(interactPepXMLFiles.stream().map(Path::toString).collect(Collectors.toList()));
+//      cmd.addAll(pepxmlsPaths);
       ProcessBuilder pb = new ProcessBuilder(cmd);
       pb.directory(protxml.getParent().toFile());
       pbis.add(PbiBuilder.from(pb));

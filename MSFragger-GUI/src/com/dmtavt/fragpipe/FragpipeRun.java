@@ -7,7 +7,7 @@ import com.dmtavt.fragpipe.api.IConfig;
 import com.dmtavt.fragpipe.api.InputLcmsFile;
 import com.dmtavt.fragpipe.api.LcmsFileGroup;
 import com.dmtavt.fragpipe.cmd.CmdBase;
-import com.dmtavt.fragpipe.cmd.CmdCombinePSMValidation;
+import com.dmtavt.fragpipe.cmd.CmdFPOPCombinePSMValidation;
 import com.dmtavt.fragpipe.cmd.CmdCrystalc;
 import com.dmtavt.fragpipe.cmd.CmdFreequant;
 import com.dmtavt.fragpipe.cmd.CmdIonquant;
@@ -58,7 +58,7 @@ import com.dmtavt.fragpipe.tools.crystalc.CrystalcPanel;
 import com.dmtavt.fragpipe.tools.crystalc.CrystalcParams;
 import com.dmtavt.fragpipe.tools.fragger.MsfraggerParams;
 import com.dmtavt.fragpipe.tools.ionquant.QuantPanelLabelfree;
-import com.dmtavt.fragpipe.tools.iproph.CombinePSMValidationPanel;
+import com.dmtavt.fragpipe.tools.iproph.FPOPCombinePSMValidationPanel;
 import com.dmtavt.fragpipe.tools.pepproph.PepProphPanel;
 import com.dmtavt.fragpipe.tools.philosopher.ReportPanel;
 import com.dmtavt.fragpipe.tools.protproph.ProtProphPanel;
@@ -610,6 +610,7 @@ public class FragpipeRun {
     final TabWorkflow tabWorkflow = Fragpipe.getStickyStrict(TabWorkflow.class);
 
     // confirm with user that multi-experiment report is not needed
+    final FPOPCombinePSMValidationPanel fpopIProphPanel = Fragpipe.getStickyStrict(FPOPCombinePSMValidationPanel.class);
     final ProtProphPanel protProphPanel = Fragpipe.getStickyStrict(ProtProphPanel.class);
     final ReportPanel reportPanel = Fragpipe.getStickyStrict(ReportPanel.class);
 
@@ -818,28 +819,30 @@ public class FragpipeRun {
       return true;
     });
 
-    // run IProphet to combine PSM validation
-    final CombinePSMValidationPanel combinePSMValidationPanel = Fragpipe.getStickyStrict(CombinePSMValidationPanel.class);
+    // FPOP run IProphet to combine PSM validation
+    final FPOPCombinePSMValidationPanel combinePSMValidationPanel = Fragpipe.getStickyStrict(FPOPCombinePSMValidationPanel.class);
     final boolean isRunCombinePSMValidationPanel = combinePSMValidationPanel.isRun();
 //    final Map<LcmsFileGroup, Path> sharedMapGroupsToProtxml = new LinkedHashMap<>();
 
-    final CmdCombinePSMValidation cmdCombinePSMValidation = new CmdCombinePSMValidation(isRunCombinePSMValidationPanel, wd);
+    final CmdFPOPCombinePSMValidation cmdFPOPCombinePSMValidation = new CmdFPOPCombinePSMValidation(isRunCombinePSMValidationPanel, wd);
 
     addCheck.accept(() -> {
-      if (cmdCombinePSMValidation.isRun()) {
+      if (cmdFPOPCombinePSMValidation.isRun()) {
         return checkDbConfig(parent);
       }
       return true;
     });
-    addConfig.accept(cmdCombinePSMValidation, () -> {
+    addConfig.accept(cmdFPOPCombinePSMValidation, () -> {
       final boolean isMuiltiExperimentReport = sharedLcmsFileGroups.size() > 1;
-      if (cmdCombinePSMValidation.isRun()) {
-        final String protProphCmdStr = protProphPanel.getCmdOpts();
-        if (!cmdCombinePSMValidation.configure(parent, usePhi, protProphCmdStr, isMuiltiExperimentReport, sharedPepxmlFiles)) {
+      if (cmdFPOPCombinePSMValidation.isRun()) {
+        final String protProphCmdStr = fpopIProphPanel.getCmdOpts();
+        final List<Path> interactPepXMLFiles = FPOPCombinePSMValidationPanel.getInteractPepXMLFiles(fpopIProphPanel.getPepXmlFolder());
+        if (!cmdFPOPCombinePSMValidation.configure(parent, usePhi, protProphCmdStr, isMuiltiExperimentReport, sharedPepxmlFiles, Paths.get(fpopIProphPanel.getPepXmlFolder()),interactPepXMLFiles, threads)) {
+
           return false;
         }
       }
-      Map<LcmsFileGroup, Path> outputs = cmdCombinePSMValidation.outputs(sharedPepxmlFiles, isMuiltiExperimentReport);
+      Map<LcmsFileGroup, Path> outputs = cmdFPOPCombinePSMValidation.outputs(sharedPepxmlFiles, isMuiltiExperimentReport);
 //      MapUtils.refill(sharedMapGroupsToProtxml, outputs);
       return true;
     });
@@ -1191,6 +1194,7 @@ public class FragpipeRun {
 
 
     addToGraph(graphOrder, cmdStart, DIRECTION.IN);
+    addToGraph(graphOrder, cmdFPOPCombinePSMValidation, DIRECTION.IN);
     addToGraph(graphOrder, cmdUmpire, DIRECTION.IN, cmdStart);
     addToGraph(graphOrder, cmdMsfragger, DIRECTION.IN, cmdStart, cmdUmpire);
 

@@ -13,16 +13,25 @@ import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
 import java.awt.*;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static com.dmtavt.fragpipe.Fragpipe.fe;
 
-public class CombinePSMValidationPanel extends JPanelBase {
-  private static final Logger log = LoggerFactory.getLogger(CombinePSMValidationPanel.class);
+public class FPOPCombinePSMValidationPanel extends JPanelBase {
+  private static final Logger log = LoggerFactory.getLogger(FPOPCombinePSMValidationPanel.class);
   public static final String PREFIX = "iprophet.";
   private UiCheck checkRun;
   private JButton btnAllowMassShifted;
   private JButton btnDisallowMassShifted;
   private UiText uiTextCmdOpts;
+  private UiText uiTextFolder;
   private JPanel pTop;
   private JPanel pContent;
 
@@ -32,6 +41,10 @@ public class CombinePSMValidationPanel extends JPanelBase {
 
   public String getCmdOpts() {
     return uiTextCmdOpts.getNonGhostText().trim();
+  }
+
+  public String getPepXmlFolder() {
+    return uiTextFolder.getNonGhostText().trim();
   }
 
   @Override
@@ -52,10 +65,16 @@ public class CombinePSMValidationPanel extends JPanelBase {
   private void loadDefaults(String type) {
     String v = Fragpipe.getPropFix(ThisAppProps.PROP_TEXT_CMD_IPROPHET, type);
     if (v == null) {
-      v = "--nonsp --threads 56";
+      v = "--nonsp";
       log.warn("Property [{}] not found in Bundle.properties, default to hardcoded value: {}", ThisAppProps.PROP_TEXT_CMD_IPROPHET, v);
     }
     uiTextCmdOpts.setText(v);
+  }
+
+  private static JFileChooser createIProphDirchooser() {
+    JFileChooser fc = FileChooserUtils.create("Select Python 3 binary", "Select",
+            false, FileChooserUtils.FcMode.DIRS_ONLY, true);
+    return fc;
   }
 
   @Override
@@ -66,10 +85,20 @@ public class CombinePSMValidationPanel extends JPanelBase {
       loadDefaults(null);
     });
     final String ghost = "select folder with the interact.pep.xmls";
-    final UiText uiTextFolder = UiUtils.uiTextBuilder().ghost(ghost).create();
-    FormEntry fe = fe(uiTextFolder, "interact-pep-xml-directory", PREFIX)
+    uiTextFolder = UiUtils.uiTextBuilder().ghost(ghost).create();
+    FormEntry feInputFolder = fe(uiTextFolder, "interact-pep-xml-directory", PREFIX)
             .tooltip(ghost).label("input folder:").create();
     uiTextCmdOpts = UiUtils.uiTextBuilder().cols(20).text(defaultCmdOpt()).create();
+//    JButton btnBrowse = feInputFolder.browseButton("Browse", ghost, CombinePSMValidationPanel::createIProphDirchooser, paths ->
+//            paths.stream().findFirst()
+//                    .ifPresent(bin -> Bus.post(new MessagePythonNewBin(bin.toString()))));
+    final String interact_pep_xml_folder = uiTextCmdOpts.getNonGhostText();
+//    final String interact_pep_xml_folder = "/storage/dpolasky/sharing/Guo_Ci/";
+
+    System.out.println("interact_pep_xml_folder = " + interact_pep_xml_folder);
+    for (Path f:getInteractPepXMLFiles(interact_pep_xml_folder))
+      System.out.println("f = " + f);
+
     FormEntry feCmdOpts = mu.feb("cmd-opts", uiTextCmdOpts).label("Cmd line opts:").create();
 
     mu.layout(this, mu.lcFillXNoInsetsTopBottom());
@@ -77,17 +106,26 @@ public class CombinePSMValidationPanel extends JPanelBase {
 
     pTop = mu.newPanel(null, mu.lcFillXNoInsetsTopBottom());
     mu.add(pTop, checkRun).split();
-    mu.add(pTop, btnDefaults).gapLeft("20px");
+//    mu.add(pTop, btnDefaults).gapLeft("20px");
     pContent = mu.newPanel(null, mu.lcFillXNoInsetsTopBottom());
-    mu.add(pContent, fe.label()).alignX("right");
-    mu.add(pContent, fe.comp).growX().pushX().wrap();
-    mu.add(pContent, feCmdOpts.label()).alignX("right");
-    mu.add(pContent, feCmdOpts.comp).growX().pushX().wrap();
+    mu.add(pContent, feInputFolder.label()).alignX("right");
+    mu.add(pContent, feInputFolder.comp).growX().pushX().wrap();
+//    mu.add(pContent, feInputFolder.comp).growX().pushX();
+//    mu.add(pContent, btnBrowse).growX().pushX().wrap();
+//    mu.add(pContent, feCmdOpts.label()).alignX("right");
+//    mu.add(pContent, feCmdOpts.comp).growX().pushX().wrap();
 
     mu.add(this, pTop).growX().wrap();
     mu.add(this, pContent).growX().wrap();
   }
 
+  static public List<Path> getInteractPepXMLFiles(String interact_pep_xml_folder){
+    try (Stream<Path> walkStream = Files.walk(Paths.get(interact_pep_xml_folder))) {
+      return walkStream.filter(Files::exists).filter(f -> f.getFileName().toString().equals("interact.pep.xml")).collect(Collectors.toList());
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+  }
   private String defaultCmdOpt() {
     return Fragpipe.getPropFix(ThisAppProps.PROP_TEXT_CMD_IPROPHET, "open");
   }
