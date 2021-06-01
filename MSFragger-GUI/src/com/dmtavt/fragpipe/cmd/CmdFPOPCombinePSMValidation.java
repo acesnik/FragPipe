@@ -164,25 +164,22 @@ public class CmdFPOPCombinePSMValidation extends CmdBase {
             + "processing experimental groups together.");
         return false;
       }
-      Path protxml = interactProtXmls.iterator().next();
-      if (!protxml.getParent().equals(wd)) {
-        throw new IllegalStateException("Protxml not in global output directory when groups processed together.");
-      }
       List<String> pepxmlsPaths = pepxmlFiles.entrySet().stream()
           .flatMap(pepxml -> pepxml.getValue().stream()).map(Path::toString)
           .distinct()
           .collect(Collectors.toList());
 //      List<String> cmd = createCmdStub(usePhilosopher, protxml.getParent(), proteinProphetParams);
       final List<String> cmd = new ArrayList<>();
-      cmd.add(usePhilosopher.useBin(pepXmlFolder));
+      cmd.add(usePhilosopher.useBin(wd));
       cmd.add(PhilosopherProps.CMD_IPROPHET);
       cmd.add("--nonsp");
       cmd.add("--threads");
-      cmd.add(String.valueOf(nThreads));
+      final int threads = nThreads == 0 ? Math.max(1, Runtime.getRuntime().availableProcessors() - 1) : nThreads;
+      cmd.add(String.valueOf(threads));
       cmd.addAll(interactPepXMLFiles.stream().map(Path::toString).collect(Collectors.toList()));
 //      cmd.addAll(pepxmlsPaths);
       ProcessBuilder pb = new ProcessBuilder(cmd);
-      pb.directory(protxml.getParent().toFile());
+      pb.directory(wd.toFile());
       pbis.add(PbiBuilder.from(pb));
     }
 

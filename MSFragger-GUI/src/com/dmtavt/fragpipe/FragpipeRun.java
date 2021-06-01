@@ -87,6 +87,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
@@ -161,13 +162,17 @@ public class FragpipeRun {
         }
       }
 
+      final FPOPCombinePSMValidationPanel combinePSMValidationPanel = Fragpipe.getStickyStrict(FPOPCombinePSMValidationPanel.class);
+      final boolean isRunCombinePSMValidationPanel = combinePSMValidationPanel.isRun();
+
+
       // check input LCMS files
-      final Map<String, LcmsFileGroup> lcmsFileGroups = checkInputLcmsFiles1(tabRun, tabWorkflow);
+      final Map<String, LcmsFileGroup> lcmsFileGroups = isRunCombinePSMValidationPanel ? Collections.EMPTY_MAP : checkInputLcmsFiles1(tabRun, tabWorkflow);
       if (lcmsFileGroups == null) {
         log.debug("checkInputLcmsFiles1() failed");
         return;
       }
-      final List<InputLcmsFile> inputLcmsFiles = checkInputLcmsFiles2(tabRun, lcmsFileGroups);
+      final List<InputLcmsFile> inputLcmsFiles = isRunCombinePSMValidationPanel ? Collections.EMPTY_LIST : checkInputLcmsFiles2(tabRun, lcmsFileGroups);
       if (inputLcmsFiles == null) {
         log.debug("checkInputLcmsFiles2() failed");
         return;
@@ -650,7 +655,9 @@ public class FragpipeRun {
       sharedLcmsFiles.addAll(Seq.seq(sharedLcmsFileGroups.values())
           .flatMap(group -> group.lcmsFiles.stream())
           .toList());
-      if (sharedLcmsFiles.isEmpty()) {
+      final FPOPCombinePSMValidationPanel combinePSMValidationPanel = Fragpipe.getStickyStrict(FPOPCombinePSMValidationPanel.class);
+      final boolean isRunCombinePSMValidationPanel = combinePSMValidationPanel.isRun();
+      if (sharedLcmsFiles.isEmpty() && !isRunCombinePSMValidationPanel) {
         SwingUtils.showErrorDialog(parent,
             "No LCMS files provided.", "Add LCMS files");
         return false;
@@ -825,13 +832,6 @@ public class FragpipeRun {
 //    final Map<LcmsFileGroup, Path> sharedMapGroupsToProtxml = new LinkedHashMap<>();
 
     final CmdFPOPCombinePSMValidation cmdFPOPCombinePSMValidation = new CmdFPOPCombinePSMValidation(isRunCombinePSMValidationPanel, wd);
-
-    addCheck.accept(() -> {
-      if (cmdFPOPCombinePSMValidation.isRun()) {
-        return checkDbConfig(parent);
-      }
-      return true;
-    });
     addConfig.accept(cmdFPOPCombinePSMValidation, () -> {
       final boolean isMuiltiExperimentReport = sharedLcmsFileGroups.size() > 1;
       if (cmdFPOPCombinePSMValidation.isRun()) {
