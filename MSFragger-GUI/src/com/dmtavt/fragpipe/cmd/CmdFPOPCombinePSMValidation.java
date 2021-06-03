@@ -28,8 +28,8 @@ public class CmdFPOPCombinePSMValidation extends CmdBase {
 
   public static final String NAME = "FPOP IProphet";
 
-  private static final String INTERACT_FN = "combined.prot.xml";
-  private static final String COMBINED_FN = "combined.prot.xml";
+  private static final String INTERACT_FN = "interact.iproph.pep.xml";
+  private static final String COMBINED_FN = "interact.iproph.pep.xml";
 
   public CmdFPOPCombinePSMValidation(boolean isRun, Path workDir) {
     super(isRun, workDir);
@@ -44,32 +44,50 @@ public class CmdFPOPCombinePSMValidation extends CmdBase {
    * @return Mapping from Experiment/Group name to interact.prot.xml file location.
    * 'interact' has been renamed to 'combined'.
    */
-  public Map<LcmsFileGroup, Path> outputs(Map<InputLcmsFile, List<Path>> pepxmlFiles, boolean isMultiExperimentReport) {
-    Map<String, List<InputLcmsFile>> lcmsByExp = pepxmlFiles.keySet().stream()
-        .collect(Collectors.groupingBy(f -> f.getGroup()));
+//  public Map<LcmsFileGroup, Path> outputs(Map<InputLcmsFile, List<Path>> pepxmlFiles, boolean isMultiExperimentReport) {
+  public Map<InputLcmsFile, List<Path>> outputs(Map<InputLcmsFile, List<Path>> inputs, boolean isMultiExperimentReport) {
+    Map<InputLcmsFile, List<Path>> m = new HashMap<>();
+    for (Entry<InputLcmsFile, List<Path>> e : inputs.entrySet()) {
+      InputLcmsFile lcms = e.getKey();
+      for (Path pepxml : e.getValue()) {
+        final String cleanFn = pepxml.getFileName().toString();
+        final Path cleanDir = pepxml.getParent();
 
-    Map<LcmsFileGroup, Path> m = new HashMap<>();
-
-    for (Entry<String, List<InputLcmsFile>> e : lcmsByExp.entrySet()) {
-      final String groupName = e.getKey();
-      final List<InputLcmsFile> lcmsFiles = e.getValue();
-      if (lcmsFiles.isEmpty()) {
-        throw new IllegalStateException("Empty LCMS file list. This is a bug. Report to "
-            + "developers.");
+        Path interactXml;
+{
+          // --combine option for PeptideProphet means there's a single interact.pep.xml for each experiment/group
+          interactXml = cleanDir.resolve(Paths.get("interact.iproph.pep.xml"));
+        }
+        m.computeIfAbsent(lcms, (k) -> new ArrayList<>()).add(interactXml);
       }
-      LcmsFileGroup group = new LcmsFileGroup(groupName, lcmsFiles);
-      String fn = isMultiExperimentReport ? COMBINED_FN : INTERACT_FN;
-      m.put(group, wd.resolve(fn));
     }
-
-    Set<Path> interactProtXmls = new HashSet<>(m.values());
-    if (interactProtXmls.size() > 1) {
-      throw new IllegalStateException("During combined processing of Experiments/Groups "
-          + "only one interact.prot.xml file should be produced. This is probably a bug, report "
-          + "to developers.");
-    }
-
     return m;
+
+//    Map<String, List<InputLcmsFile>> lcmsByExp = pepxmlFiles.keySet().stream()
+//        .collect(Collectors.groupingBy(f -> f.getGroup()));
+//
+//    Map<LcmsFileGroup, Path> m = new HashMap<>();
+//
+//    for (Entry<String, List<InputLcmsFile>> e : lcmsByExp.entrySet()) {
+//      final String groupName = e.getKey();
+//      final List<InputLcmsFile> lcmsFiles = e.getValue();
+//      if (lcmsFiles.isEmpty()) {
+//        throw new IllegalStateException("Empty LCMS file list. This is a bug. Report to "
+//            + "developers.");
+//      }
+//      LcmsFileGroup group = new LcmsFileGroup(groupName, lcmsFiles);
+//      String fn = isMultiExperimentReport ? COMBINED_FN : INTERACT_FN;
+//      m.put(group, wd.resolve(fn));
+//    }
+//
+//    Set<Path> interactProtXmls = new HashSet<>(m.values());
+//    if (interactProtXmls.size() > 1) {
+//      throw new IllegalStateException("During combined processing of Experiments/Groups "
+//          + "only one interact.prot.xml file should be produced. This is probably a bug, report "
+//          + "to developers.");
+//    }
+//    System.out.println("m = " + m);
+//    return m;
   }
 
   private List<Path> findOldFilesForDeletion(List<Path> outputs) {
@@ -144,26 +162,8 @@ public class CmdFPOPCombinePSMValidation extends CmdBase {
 
     initPreConfig();
 
-    // check for existence of old files
-    final Map<LcmsFileGroup, Path> outputs = outputs(pepxmlFiles, isMultiExperiment);
-    final List<Path> oldFilesForDeletion = findOldFilesForDeletion(new ArrayList<>(outputs.values()));
-    if (!deleteFiles(comp, oldFilesForDeletion)) {
-      return false;
-    }
-
-//    ProteinProphetParams proteinProphetParams = new ProteinProphetParams();
-//    proteinProphetParams.setCmdLineParams(txtProteinProphetCmdLineOpts);
-
-    Map<LcmsFileGroup, Path> groupToProtxml = outputs(pepxmlFiles, isMultiExperiment);
 
     {
-      Set<Path> interactProtXmls = new HashSet<>(groupToProtxml.values());
-      if (interactProtXmls.size() > 1) {
-        JOptionPane.showMessageDialog(comp, "[ProteinProphet]\n"
-            + "Report to developers, more than one interact protxml file when\n"
-            + "processing experimental groups together.");
-        return false;
-      }
       List<String> pepxmlsPaths = pepxmlFiles.entrySet().stream()
           .flatMap(pepxml -> pepxml.getValue().stream()).map(Path::toString)
           .distinct()

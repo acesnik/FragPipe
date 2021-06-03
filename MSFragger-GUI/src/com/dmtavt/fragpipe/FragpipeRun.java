@@ -163,16 +163,15 @@ public class FragpipeRun {
       }
 
       final FPOPCombinePSMValidationPanel combinePSMValidationPanel = Fragpipe.getStickyStrict(FPOPCombinePSMValidationPanel.class);
-      final boolean isRunCombinePSMValidationPanel = combinePSMValidationPanel.isRun();
 
 
       // check input LCMS files
-      final Map<String, LcmsFileGroup> lcmsFileGroups = isRunCombinePSMValidationPanel ? Collections.EMPTY_MAP : checkInputLcmsFiles1(tabRun, tabWorkflow);
+      final Map<String, LcmsFileGroup> lcmsFileGroups = checkInputLcmsFiles1(tabRun, tabWorkflow);
       if (lcmsFileGroups == null) {
         log.debug("checkInputLcmsFiles1() failed");
         return;
       }
-      final List<InputLcmsFile> inputLcmsFiles = isRunCombinePSMValidationPanel ? Collections.EMPTY_LIST : checkInputLcmsFiles2(tabRun, lcmsFileGroups);
+      final List<InputLcmsFile> inputLcmsFiles = checkInputLcmsFiles2(tabRun, lcmsFileGroups);
       if (inputLcmsFiles == null) {
         log.debug("checkInputLcmsFiles2() failed");
         return;
@@ -656,8 +655,7 @@ public class FragpipeRun {
           .flatMap(group -> group.lcmsFiles.stream())
           .toList());
       final FPOPCombinePSMValidationPanel combinePSMValidationPanel = Fragpipe.getStickyStrict(FPOPCombinePSMValidationPanel.class);
-      final boolean isRunCombinePSMValidationPanel = combinePSMValidationPanel.isRun();
-      if (sharedLcmsFiles.isEmpty() && !isRunCombinePSMValidationPanel) {
+      if (sharedLcmsFiles.isEmpty()) {
         SwingUtils.showErrorDialog(parent,
             "No LCMS files provided.", "Add LCMS files");
         return false;
@@ -842,7 +840,9 @@ public class FragpipeRun {
           return false;
         }
       }
-      Map<LcmsFileGroup, Path> outputs = cmdFPOPCombinePSMValidation.outputs(sharedPepxmlFiles, isMuiltiExperimentReport);
+      final Map<InputLcmsFile, List<Path>> outputs = cmdFPOPCombinePSMValidation.outputs(sharedPepxmlFiles, isMuiltiExperimentReport);
+      sharedPepxmlFiles.clear();
+      sharedPepxmlFiles.putAll(outputs);
 //      MapUtils.refill(sharedMapGroupsToProtxml, outputs);
       return true;
     });
@@ -1194,7 +1194,7 @@ public class FragpipeRun {
 
 
     addToGraph(graphOrder, cmdStart, DIRECTION.IN);
-    addToGraph(graphOrder, cmdFPOPCombinePSMValidation, DIRECTION.IN);
+    addToGraph(graphOrder, cmdFPOPCombinePSMValidation, DIRECTION.IN, cmdPeptideProphet);
     addToGraph(graphOrder, cmdUmpire, DIRECTION.IN, cmdStart);
     addToGraph(graphOrder, cmdMsfragger, DIRECTION.IN, cmdStart, cmdUmpire);
 
