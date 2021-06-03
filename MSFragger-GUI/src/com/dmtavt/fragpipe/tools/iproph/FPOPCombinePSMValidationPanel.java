@@ -4,6 +4,8 @@ import com.dmtavt.fragpipe.Fragpipe;
 import com.dmtavt.fragpipe.messages.MessageSearchType;
 import com.dmtavt.fragpipe.messages.NoteConfigPhilosopher;
 import com.dmtavt.fragpipe.params.ThisAppProps;
+import com.github.chhh.utils.PathUtils;
+import com.github.chhh.utils.StringUtils;
 import com.github.chhh.utils.SwingUtils;
 import com.github.chhh.utils.swing.*;
 import org.greenrobot.eventbus.Subscribe;
@@ -27,6 +29,7 @@ import static com.dmtavt.fragpipe.Fragpipe.fe;
 public class FPOPCombinePSMValidationPanel extends JPanelBase {
   private static final Logger log = LoggerFactory.getLogger(FPOPCombinePSMValidationPanel.class);
   public static final String PREFIX = "iprophet.";
+  public static final String LAST_INPUT_DIR = "inputdir.last-path";
   private UiCheck checkRun;
   private JButton btnAllowMassShifted;
   private JButton btnDisallowMassShifted;
@@ -71,12 +74,6 @@ public class FPOPCombinePSMValidationPanel extends JPanelBase {
     uiTextCmdOpts.setText(v);
   }
 
-  private static JFileChooser createIProphDirchooser() {
-    JFileChooser fc = FileChooserUtils.create("Select Python 3 binary", "Select",
-            false, FileChooserUtils.FcMode.DIRS_ONLY, true);
-    return fc;
-  }
-
   @Override
   public void init() {
     checkRun = UiUtils.createUiCheck("Run IProphet", true);
@@ -89,13 +86,39 @@ public class FPOPCombinePSMValidationPanel extends JPanelBase {
     FormEntry feInputFolder = fe(uiTextFolder, "interact-pep-xml-directory", PREFIX)
             .tooltip(ghost).label("input folder:").create();
     uiTextCmdOpts = UiUtils.uiTextBuilder().cols(20).text(defaultCmdOpt()).create();
-//    JButton btnBrowse = feInputFolder.browseButton("Browse", ghost, CombinePSMValidationPanel::createIProphDirchooser, paths ->
-//            paths.stream().findFirst()
-//                    .ifPresent(bin -> Bus.post(new MessagePythonNewBin(bin.toString()))));
-    final String interact_pep_xml_folder = uiTextCmdOpts.getNonGhostText();
-//    final String interact_pep_xml_folder = "/storage/dpolasky/sharing/Guo_Ci/";
+    FormEntry feWorkdir = mu.feb("workdir", uiTextFolder).label("Input dir:")
+            .tooltip("interact.pep.xml will be searched in this directory").create();
+    JButton btnBrowse = feWorkdir
+            .browseButton(() -> FileChooserUtils.builder("Select output directory")
+                            .mode(FileChooserUtils.FcMode.DIRS_ONLY).multi(false)
+                            .paths(Stream.of(uiTextFolder.getNonGhostText(),
+                                    Fragpipe.propsVar().getProperty(LAST_INPUT_DIR))).create(),
+                    ghost,
+                    selected -> uiTextFolder.setText(selected.get(0).toString())
+            );
+    JButton btnOpenInFileManager = UiUtils.createButton("Open in File Manager", e -> {
+      String text = uiTextFolder.getNonGhostText();
+      if (StringUtils.isBlank(text)) {
+        SwingUtils.showInfoDialog(FPOPCombinePSMValidationPanel.this, "Empty path", "Does not exist");
+        return;
+      }
+      Path existing = PathUtils.existing(text);
+      if (existing == null) {
+        SwingUtils
+                .showInfoDialog(FPOPCombinePSMValidationPanel.this, "Path:\n'" + text + "'\nDoes not exist", "Does not exist");
+        return;
+      }
+      try {
+        Desktop.getDesktop().open(existing.toFile());
+      } catch (IOException ex) {
+        SwingUtils
+                .showErrorDialog(FPOPCombinePSMValidationPanel.this, "Could not open path in system file browser.", "Error");
+        return;
+      }
+    });
 
-    System.out.println("interact_pep_xml_folder = " + interact_pep_xml_folder);
+    final String interact_pep_xml_folder = uiTextCmdOpts.getNonGhostText();
+
     for (Path f:getInteractPepXMLFiles(interact_pep_xml_folder))
       System.out.println("f = " + f);
 
@@ -109,7 +132,9 @@ public class FPOPCombinePSMValidationPanel extends JPanelBase {
 //    mu.add(pTop, btnDefaults).gapLeft("20px");
     pContent = mu.newPanel(null, mu.lcFillXNoInsetsTopBottom());
     mu.add(pContent, feInputFolder.label()).alignX("right");
-    mu.add(pContent, feInputFolder.comp).growX().pushX().wrap();
+    mu.add(pContent, feInputFolder.comp).growX().pushX();
+    mu.add(pContent, btnBrowse);
+    mu.add(pContent, btnOpenInFileManager).wrap();
 //    mu.add(pContent, feInputFolder.comp).growX().pushX();
 //    mu.add(pContent, btnBrowse).growX().pushX().wrap();
 //    mu.add(pContent, feCmdOpts.label()).alignX("right");
